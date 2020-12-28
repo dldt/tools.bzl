@@ -1,14 +1,36 @@
-def glsl_compile(name, input, output, target_version = "vulkan1.2", spirv_version = "V100"):
-    native.genrule(
-        name = name,
-        srcs = [
-            input,
-        ],
-        outs = [
-            output,
-        ],
-        cmd = "$(location @glslang//:glslangValidator) --client vulkan100 --target-env spirv1.4 --target-env vulkan1.2 $(SRCS) -o $@",
-        tools = [
-            "@glslang//:glslangValidator",
-        ],
+def _glsl_compile_impl(ctx):
+    output = ctx.expand_location("$(location {})".format(ctx.attr.output))
+    input = ctx.expand_location("$(location {})".format(ctx.attr.input.label), [ctx.attr.input])
+
+    args = ctx.actions.args()
+    args.add_all(["--client", ctx.attr.client_version])
+    args.add_all(ctx.attr.target_version, before_each = "--target-env", uniquify = True)
+    args.add_all(["-o", output, input])
+
+    ctx.actions.run(
+        outputs = [ctx.outputs.output],
+        inputs = ctx.files.input + ctx.files.data,
+        executable = ctx.files.glslangValidator[0],
+        arguments = [args],
     )
+
+    return [DefaultInfo(runfiles = ctx.runfiles(files = [ctx.outputs.output]))]
+
+glsl_compile = rule(
+    implementation = _glsl_compile_impl,
+    attrs = {
+        "output": attr.output(mandatory = True),
+        "input": attr.label(allow_single_file = True, mandatory = True),
+        "data": attr.label_list(allow_files = True),
+        "target_version": attr.string_list(
+            default = ["vulkan1.2", "spirv1.4"],
+        ),
+        "client_version": attr.string(
+            default = "vulkan100",
+        ),
+        "glslangValidator": attr.label(
+            allow_single_file = True,
+            default = "@glslang//:glslangValidator",
+        ),
+    },
+)
