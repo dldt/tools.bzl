@@ -88,7 +88,7 @@ def _add_if_needed(arr, add_arr):
             if existing == to_add:
                 found = True
         if not found:
-            filtered += [to_add]
+            filtered.append(to_add)
     return arr + filtered
 
 def _get_flags_info(ctx, source_path, destination_path, compilation_context, feature_configuration, cc_toolchain, action_name):
@@ -160,6 +160,7 @@ def _compilation_database_aspect_impl(target, ctx):
     if not srcs:
         return []
 
+    action_name = None
     for source in srcs:
         if source.extension in _c_extensions:
             action_name = C_COMPILE_ACTION_NAME
