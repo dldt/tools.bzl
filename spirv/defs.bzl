@@ -22,7 +22,8 @@ def _export_headers(ctx, virtual_header_prefix):
         name = out.replace("/", "_") + "_export"
         out = paths.join(
             virtual_header_prefix,
-            out)
+            out,
+        )
 
         symlink = ctx.actions.declare_file(out)
         ctx.actions.symlink(
@@ -36,10 +37,10 @@ def _export_headers(ctx, virtual_header_prefix):
 def _compile_files(ctx, includes):
     dephdrs = []
     for dep in ctx.attr.deps:
-        glsllibraryinfo= dep[GlslLibraryInfo]
+        glsllibraryinfo = dep[GlslLibraryInfo]
         includes.extend(glsllibraryinfo.includes)
         dephdrs.extend(
-            glsllibraryinfo.hdrs
+            glsllibraryinfo.hdrs,
         )
 
     args = ctx.actions.args()
@@ -48,7 +49,7 @@ def _compile_files(ctx, includes):
     args.add("-std={}{}".format(ctx.attr.std_version, ctx.attr.std_profile))
     args.add_all(includes, format_each = "-I%s", uniquify = True)
     args.add_all(ctx.attr.defines, format_each = "-D%s", uniquify = True)
-    
+
     if ctx.attr.debug:
         args.add("-g")
     if ctx.attr.optimize:
@@ -88,17 +89,19 @@ def _compile_files(ctx, includes):
 def _glsl_library_impl(ctx):
     virtual_header_prefix = "_virtual_includes/{}".format(ctx.attr.name)
     hdrs = _export_headers(ctx, virtual_header_prefix)
-    build_file_dir = paths.dirname(ctx.build_file_path)
+    dummy_header_path = ctx.actions.declare_file(paths.join(virtual_header_prefix, ".dummy"))
+    ctx.actions.write(output = dummy_header_path, content = "-- locate virtual includes root")
+    virtual_header_path = paths.dirname(dummy_header_path.path)
     includes = []
     for include in ctx.attr.includes:
         path = paths.normalize(paths.join(
-            build_file_dir,
-            virtual_header_prefix,
-            include))
+            virtual_header_path,
+            include,
+        ))
         includes.append(path)
         includes.append(paths.join(ctx.bin_dir.path, path))
 
-    spirvs = { spv[0] : spv[1] for spv in _compile_files(ctx, includes) }
+    spirvs = {spv[0]: spv[1] for spv in _compile_files(ctx, includes)}
 
     return [
         DefaultInfo(
@@ -143,7 +146,7 @@ glsl_library = rule(
             "glsl",
         ]),
         "hdrs": attr.label_list(allow_files = ["glsl"]),
-        "includes": attr.string_list(default=["./"]),
+        "includes": attr.string_list(default = ["./"]),
         "deps": attr.label_list(
             providers = [GlslLibraryInfo],
         ),
