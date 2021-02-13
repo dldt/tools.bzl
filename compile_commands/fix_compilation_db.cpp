@@ -13,18 +13,18 @@ using namespace std::literals::string_literals;
 
 namespace stdfs = std::filesystem;
 
-const auto BAZEL_STABLE_STATUS_FILE_PATH_ARG = "-b"s;
-const auto BAZEL_STABLE_STATUS_FILE_PATH_ARG_LONG =
+const auto kBazelStableStatusFilePathArg = "-b"s;
+const auto kBazelStableStatusFilePathArgLong =
     "--bazel-stable-status-file"s;
-const auto COMPILE_COMMANDS_FILE_IN_ARG = "compile-commands-in-file"s;
-const auto COMPILE_COMMANDS_FILE_OUT_ARG = "compile-commands-out-file"s;
+const auto kCompileCommandsFileInArg = "compile-commands-in-file"s;
+const auto kCompileCommandsFileOutArg = "compile-commands-out-file"s;
 
-argparse::ArgumentParser buildArgumentParser() {
+argparse::ArgumentParser BuildArgumentParser() {
     argparse::ArgumentParser program("fix-compilation-db");
 
     program
-        .add_argument(BAZEL_STABLE_STATUS_FILE_PATH_ARG,
-                      BAZEL_STABLE_STATUS_FILE_PATH_ARG_LONG)
+        .add_argument(kBazelStableStatusFilePathArg,
+                      kBazelStableStatusFilePathArgLong)
         .help(
             "path to the bazel workspace stable status file. This file must "
             "contain current workspace location defined as "
@@ -32,12 +32,12 @@ argparse::ArgumentParser buildArgumentParser() {
         .required()
         .action([](const std::string &value) { return stdfs::path(value); });
 
-    program.add_argument(COMPILE_COMMANDS_FILE_OUT_ARG)
+    program.add_argument(kCompileCommandsFileOutArg)
         .help("path to where the fixed compilation database is to be saved")
         .required()
         .action([](const std::string &value) { return stdfs::path(value); });
 
-    program.add_argument(COMPILE_COMMANDS_FILE_IN_ARG)
+    program.add_argument(kCompileCommandsFileInArg)
         .help("path to the clang compilation database to be fixed")
         .required()
         .action([](const std::string &value) { return stdfs::path(value); });
@@ -45,7 +45,7 @@ argparse::ArgumentParser buildArgumentParser() {
     return program;
 }
 
-int fail(std::error_code ec) {
+int Fail(std::error_code ec) {
     fmt::print(std::cerr, "{}\n", ec.message());
     return EXIT_FAILURE;
 }
@@ -53,34 +53,34 @@ int fail(std::error_code ec) {
 int main(int argc, char *argv[]) {
     using nlohmann::json;
 
-    auto program = buildArgumentParser();
+    auto program = BuildArgumentParser();
     try {
         program.parse_args(argc, argv);
     } catch (const std::runtime_error &err) {
         fmt::print(std::cerr, "{0}\n", err.what());
-        return fail(std::make_error_code(std::errc::invalid_argument));
+        return Fail(std::make_error_code(std::errc::invalid_argument));
     }
 
     const auto bazelStableStatusFilePath =
-        program.get<stdfs::path>(BAZEL_STABLE_STATUS_FILE_PATH_ARG);
+        program.get<stdfs::path>(kBazelStableStatusFilePathArg);
     if (!stdfs::exists(bazelStableStatusFilePath) ||
         !stdfs::is_regular_file(bazelStableStatusFilePath)) {
         fmt::print(std::cerr, "{0} does not exist or is not a valid file.\n",
                    bazelStableStatusFilePath.string());
-        return fail(std::make_error_code(std::errc::no_such_file_or_directory));
+        return Fail(std::make_error_code(std::errc::no_such_file_or_directory));
     }
 
     const auto clangDBInFilePath =
-        program.get<stdfs::path>(COMPILE_COMMANDS_FILE_IN_ARG);
+        program.get<stdfs::path>(kCompileCommandsFileInArg);
     if (!stdfs::exists(clangDBInFilePath) ||
         !stdfs::is_regular_file(clangDBInFilePath)) {
         fmt::print(std::cerr, "{0} does not exist or is not a valid file.\n",
                    clangDBInFilePath.string());
-        return fail(std::make_error_code(std::errc::no_such_file_or_directory));
+        return Fail(std::make_error_code(std::errc::no_such_file_or_directory));
     }
 
     const auto clangDBOutFilePath =
-        program.get<stdfs::path>(COMPILE_COMMANDS_FILE_OUT_ARG);
+        program.get<stdfs::path>(kCompileCommandsFileOutArg);
 
     stdfs::path bazelStableWorkspaceRoot;
     stdfs::path bazelStableExecutionRoot;
@@ -125,7 +125,7 @@ int main(int argc, char *argv[]) {
                 std::cerr,
                 "bazel workspace root {0} does not exist or cannot be read\n",
                 bazelStableWorkspaceRoot.string());
-            return fail(
+            return Fail(
                 std::make_error_code(std::errc::no_such_file_or_directory));
         }
 
@@ -135,7 +135,7 @@ int main(int argc, char *argv[]) {
                 std::cerr,
                 "bazel execution root {0} does not exist or cannot be read\n",
                 bazelStableExecutionRoot.string());
-            return fail(
+            return Fail(
                 std::make_error_code(std::errc::no_such_file_or_directory));
         }
 
