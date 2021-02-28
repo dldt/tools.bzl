@@ -87,21 +87,24 @@ def _compile_files(ctx, includes):
     return outputs
 
 def _glsl_library_impl(ctx):
+    # compile the files
+    this_build_file_dir = paths.dirname(ctx.build_file_path)
+    this_package_dir = paths.join(this_build_file_dir, ctx.attr.name)
+    spirvs = {spv[0]: spv[1] for spv in _compile_files(ctx, [this_package_dir])}
+
+    # Make sure they are correctly exposed to other packages
     virtual_header_prefix = "_virtual_includes/{}".format(ctx.attr.name)
     hdrs = _export_headers(ctx, virtual_header_prefix)
-    dummy_header_path = ctx.actions.declare_file(paths.join(virtual_header_prefix, ".dummy"))
-    ctx.actions.write(output = dummy_header_path, content = "-- locate virtual includes root")
-    virtual_header_path = paths.dirname(dummy_header_path.path)
-    includes = []
+
+    includes = [paths.dirname(ctx.build_file_path)]
     for include in ctx.attr.includes:
         path = paths.normalize(paths.join(
-            virtual_header_path,
+            this_build_file_dir,
+            virtual_header_prefix,
             include,
         ))
         includes.append(path)
         includes.append(paths.join(ctx.bin_dir.path, path))
-
-    spirvs = {spv[0]: spv[1] for spv in _compile_files(ctx, includes)}
 
     return [
         DefaultInfo(
