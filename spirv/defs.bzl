@@ -1,6 +1,6 @@
 load("@bazel_skylib//lib:paths.bzl", "paths")
 
-GlslLibraryInfo = provider("Set of GLSL header files", fields = ["hdrs", "includes"])
+GlslLibraryInfo = provider("Set of GLSL header files", fields = ["hdrs", "includes", "spvs"])
 
 def _export_headers(ctx, virtual_header_prefix):
     strip_include_prefix = ctx.attr.strip_include_prefix
@@ -108,7 +108,7 @@ def _glsl_library_impl(ctx):
 
     return [
         DefaultInfo(
-            files = depset(hdrs),
+            files = depset(hdrs + spirvs.values()),
             runfiles = ctx.runfiles(
                 files = spirvs.values(),
             ),
@@ -116,6 +116,7 @@ def _glsl_library_impl(ctx):
         GlslLibraryInfo(
             hdrs = hdrs,
             includes = includes,
+            spvs = spirvs.values(),
         ),
         CcInfo(),
     ]
