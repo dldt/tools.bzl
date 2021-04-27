@@ -1,6 +1,7 @@
 load("@bazel_skylib//lib:paths.bzl", "paths")
 
-GlslLibraryInfo = provider("Set of GLSL header files", fields = ["hdrs", "includes", "spvs"])
+GlslLibraryInfo = provider("Set of GLSL header files", fields = ["hdrs", "includes"])
+SpirvLibraryInfo = provider("Set of Spirv files", fields = ["spvs", "includes"])
 
 def _export_headers(ctx, virtual_header_prefix):
     strip_include_prefix = ctx.attr.strip_include_prefix
@@ -106,7 +107,7 @@ def _glsl_library_impl(ctx):
         includes.append(path)
         includes.append(paths.join(ctx.bin_dir.path, path))
 
-    return [
+    providers = [
         DefaultInfo(
             files = depset(hdrs + spirvs.values()),
             runfiles = ctx.runfiles(
@@ -116,10 +117,21 @@ def _glsl_library_impl(ctx):
         GlslLibraryInfo(
             hdrs = hdrs,
             includes = includes,
-            spvs = spirvs.values(),
         ),
-        CcInfo(),
+        CcInfo(), # So it can be used as a dep for cc_library/binary and have spirvs embedded as runfiles
     ]
+
+    if spirvs:
+        # Compute output location for spv files
+        # This will be used to populate the includes variable of the SpirvLibraryInfo provider
+        # Check if this could made more resilient
+        spirvs_root = paths.join(ctx.bin_dir.path, spirvs.values()[0].owner.workspace_root)
+        providers.append(SpirvLibraryInfo(
+            spvs = spirvs.values(),
+            includes = [spirvs_root]
+        ))
+
+    return providers
 
 glsl_library = rule(
     implementation = _glsl_library_impl,
@@ -136,7 +148,7 @@ glsl_library = rule(
             "frag",
             # compute
             "comp",
-            # Mesh shaders
+            # mesh shaders
             "mesh",
             "task",
             # ray tracing
