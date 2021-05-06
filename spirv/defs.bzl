@@ -175,7 +175,7 @@ glsl_library = rule(
             values = ["core", "compatibility", "es"],
         ),
         "target_spv": attr.string(
-            default = "spv1.5",
+            default = "spv1.3",
             values = ["spv1.0", "spv1.1", "spv1.2", "spv1.3", "spv1.4", "spv1.5"],
         ),
         "target_env": attr.string(
