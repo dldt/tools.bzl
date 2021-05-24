@@ -118,7 +118,7 @@ def _glsl_library_impl(ctx):
             hdrs = hdrs,
             includes = includes,
         ),
-        CcInfo(), # So it can be used as a dep for cc_library/binary and have spirvs embedded as runfiles
+        CcInfo(),  # So it can be used as a dep for cc_library/binary and have spirvs embedded as runfiles
     ]
 
     if spirvs:
@@ -128,7 +128,7 @@ def _glsl_library_impl(ctx):
         spirvs_root = paths.join(ctx.bin_dir.path, spirvs.values()[0].owner.workspace_root)
         providers.append(SpirvLibraryInfo(
             spvs = spirvs.values(),
-            includes = [spirvs_root]
+            includes = [spirvs_root],
         ))
 
     return providers
