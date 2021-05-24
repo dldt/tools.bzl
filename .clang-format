@@ -1,7 +1,6 @@
 ---
 Language:           Cpp
 BasedOnStyle:       Google
-IndentWidth:        4
 IncludeBlocks:      Regroup
 IncludeCategories:
   - Regex:          '"absl/.*"'
@@ -12,7 +11,16 @@ IncludeCategories:
     Priority:       80
   - Regex:          '<[^.]*>'
     Priority:       99
+  - Regex:          '<volk\.h>'
+    Priority:       10
+  - Regex:          '<vk.*>'
+    Priority:       15
+  - Regex:          '<glad/.*\.h>'
+    Priority:       15
+  - Regex:          '<vulkan/.*\.h>'
+    Priority:       16
   - Regex:          '<.*>'
     Priority:       50
 IncludeIsMainRegex: '([-_](test|unittest))?$'
+ColumnLimit: 120
 ...
