@@ -228,9 +228,11 @@ def _compilation_database_impl(ctx):
     # Generates a single compile_commands.json file with the
     # transitive depset of specified targets.
 
+    output = ctx.actions.declare_file(ctx.attr.output)
+
     if ctx.attr.disable:
         ctx.actions.write(output = ctx.outputs.filename, content = "[]\n")
-        return
+        return [OutputGroupInfo(outs = [output])]
 
     compilation_db = []
     for target in ctx.attr.targets:
@@ -241,15 +243,18 @@ def _compilation_database_impl(ctx):
     temporaryfile = ctx.actions.declare_file("compile_commands.in.json")
     ctx.actions.write(output = temporaryfile, content = content)
     tools = ctx.resolve_tools(tools = [ctx.attr._fix_compilation_db])
+
     ctx.actions.run(
-        outputs = [ctx.outputs.filename],
+        outputs = [output],
         inputs = [temporaryfile, ctx.attr.locations.files.to_list()[0]],
         tools = ctx.attr._fix_compilation_db.files,
         executable = ctx.executable._fix_compilation_db,
-        arguments = ["-b", str(ctx.attr.locations.files.to_list()[0].path), str(ctx.outputs.filename.path), str(temporaryfile.path)],
+        arguments = ["-b", str(ctx.attr.locations.files.to_list()[0].path), str(output.path), str(temporaryfile.path)],
         progress_message = "Fixing compile_commands.json for current execution root",
         mnemonic = "CompileCommands",
     )
+
+    return [OutputGroupInfo(outs = [output])]
 
 export_compile_commands = rule(
     attrs = {
@@ -273,9 +278,7 @@ export_compile_commands = rule(
         "locations": attr.label(
             allow_single_file = True,
         ),
-    },
-    outputs = {
-        "filename": "compile_commands.json",
+        "output": attr.string(default = "compile_commands.json")
     },
     implementation = _compilation_database_impl,
 )
