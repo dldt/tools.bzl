@@ -1,0 +1,61 @@
+### All platforms
+
+## Startup options
+
+# Enable symlinks on Windows
+startup --windows_enable_symlinks
+
+# Make sure build hierarchy is rooted under .bazel. It simplifies ignoring files
+# with bazel, vscode and others
+build --symlink_prefix=.bazel/ --experimental_no_product_name_out_symlink
+
+## Build
+
+# Automatically bind platform related configuration
+build --enable_platform_specific_config
+
+# Enable split debug symbol files
+build --fission=yes
+
+## Windows specific
+# Visual Studio version to use
+build:windows --action_env=BAZEL_VS="C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/"
+# Go for C++20 compliance
+build:windows --cxxopt="/std:c++latest" --host_cxxopt="/std:c++latest"
+build:windows --cxxopt="/permissive-" --host_cxxopt="/permissive-"
+# This one is required for C++20 compliance and for ranges-v3 to work
+build:windows --cxxopt="/Zc:preprocessor" --host_cxxopt="/Zc:preprocessor"
+# Make sure __cplusplus is correctly defined
+build:windows --cxxopt="/Zc:__cplusplus" --host_cxxopt="/Zc:__cplusplus"
+# Make sure runfiles are accessible on Windows
+build:windows --enable_runfiles
+# Disable a few warnings with Microsoft headers
+build:windows --cxxopt="/wd5105" --host_cxxopt="/wd5105"
+
+# Clang support for windows
+build:clang-cl --config=windows
+build:clang-cl --action_env="USE_CLANG_CL=1"
+
+## Unix generic
+build:unix --cxxopt="-std=gnu++2a" --host_cxxopt="-std=gnu++2a"
+build:unix --action_env="CCACHE_DISABLE=1" --host_action_env="CCACHE_DISABLE=1"
+
+## Linux specific
+build:linux --config=unix
+build:linux --copt="-pthread" --host_copt="-pthread"
+build:linux --conlyopt="-std=c17" --host_conlyopt="-std=c17"
+build:linux --linkopt="-pthread" --host_linkopt="-pthread"
+
+## MacOS specific
+build:macos --config=unix
+
+## Validation
+# Check for bazel files correctness
+build:validate --nobuild
+
+## Debugging
+run:valgrind --config=linux --run_under=/usr/bin/valgrind
+run:callgrind --config=linux --run_under=/usr/bin/valgrind --skin=callgrind
+run:strace --config=linux --run_under=/usr/bin/strace
+
+try-import user.bazelrc

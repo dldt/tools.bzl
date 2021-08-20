@@ -1,0 +1,6 @@
+& bazel build --keep_going //...
+if ($LastExitCode -ne "0") {
+    Write-Host "The following failed to build:"
+    & bazel build --check_up_to_date --show_result 0 //...
+    exit 1
+}

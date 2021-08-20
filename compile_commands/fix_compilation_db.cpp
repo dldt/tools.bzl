@@ -1,5 +1,6 @@
 #include <argparse/argparse.hpp>
-#include <fmt/printf.h>
+#include <fmt/core.h>
+#include <fmt/ostream.h>
 #include <nlohmann/json.hpp>
 
 #include <array>
