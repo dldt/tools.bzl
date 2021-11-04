@@ -254,7 +254,7 @@ def _compilation_database_impl(ctx):
         mnemonic = "CompileCommands",
     )
 
-    return [OutputGroupInfo(outs = [output])]
+    return [DefaultInfo(files = depset([output]))]
 
 export_compile_commands = rule(
     attrs = {
