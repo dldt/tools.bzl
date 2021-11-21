@@ -278,7 +278,7 @@ export_compile_commands = rule(
         "locations": attr.label(
             allow_single_file = True,
         ),
-        "output": attr.string(default = "compile_commands.json")
+        "output": attr.string(default = "compile_commands.json"),
     },
     implementation = _compilation_database_impl,
 )
