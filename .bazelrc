@@ -9,6 +9,7 @@ startup --windows_enable_symlinks
 # with bazel, vscode and others
 build --symlink_prefix=.bazel/
 
+
 ## Build
 
 # Automatically bind platform related configuration
@@ -16,6 +17,15 @@ build --enable_platform_specific_config
 
 # Enable split debug symbol files
 build --fission=yes
+
+# Our compile commands support needs this, so conflicting actions are not generated for test targets that
+# compile commands can depend on.
+# Not sure whether this one or --notrim_test_configuration should be used.
+# If it lands, --experimental_shareable_cpp_compile_actions might be of interest
+# See https://github.com/bazelbuild/bazel/issues/14294 and
+#   https://github.com/bazelbuild/bazel/commit/3a1795ea303ebcc5eaec2ada5ab04a160b57de1d
+build --experimental_retain_test_configuration_across_testonly
+
 
 ## Windows specific
 # Go for C++20 compliance
@@ -37,6 +47,8 @@ build:clang-cl --action_env="USE_CLANG_CL=1"
 ## Unix generic
 build:unix --cxxopt="-std=gnu++2a" --host_cxxopt="-std=gnu++2a"
 build:unix --action_env="CCACHE_DISABLE=1" --host_action_env="CCACHE_DISABLE=1"
+build:unix --copt="-mfpmath=sse" --copt="-mavx2" --host_copt="-mfpmath=sse" --host_copt="-mavx2"
+build:unix --copt="-mbmi2" --host_copt="-mbmi2"
 
 ## Linux specific
 build:linux --config=unix
