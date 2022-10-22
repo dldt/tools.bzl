@@ -1,6 +1,7 @@
 #include <argparse/argparse.hpp>
-#include <fmt/core.h>
+#include <fmt/format.h>
 #include <fmt/ostream.h>
+#include <fmt/std.h>
 #include <nlohmann/json.hpp>
 
 #include <array>
@@ -61,13 +62,13 @@ int main(int argc, char *argv[]) {
 
   const auto bazelStableStatusFilePath = program.get<stdfs::path>(kBazelStableStatusFilePathArg);
   if (!stdfs::exists(bazelStableStatusFilePath) || !stdfs::is_regular_file(bazelStableStatusFilePath)) {
-    fmt::print(std::cerr, "{0} does not exist or is not a valid file.\n", bazelStableStatusFilePath.string());
+    fmt::print(std::cerr, "{0} does not exist or is not a valid file.\n", bazelStableStatusFilePath);
     return Fail(std::make_error_code(std::errc::no_such_file_or_directory));
   }
 
   const auto clangDBInFilePath = program.get<stdfs::path>(kCompileCommandsFileInArg);
   if (!stdfs::exists(clangDBInFilePath) || !stdfs::is_regular_file(clangDBInFilePath)) {
-    fmt::print(std::cerr, "{0} does not exist or is not a valid file.\n", clangDBInFilePath.string());
+    fmt::print(std::cerr, "{0} does not exist or is not a valid file.\n", clangDBInFilePath);
     return Fail(std::make_error_code(std::errc::no_such_file_or_directory));
   }
 
@@ -107,13 +108,13 @@ int main(int argc, char *argv[]) {
 
     if (!stdfs::exists(bazelStableWorkspaceRoot) || !stdfs::is_directory(bazelStableWorkspaceRoot)) {
       fmt::print(std::cerr, "bazel workspace root {0} does not exist or cannot be read\n",
-                 bazelStableWorkspaceRoot.string());
+                 bazelStableWorkspaceRoot);
       return Fail(std::make_error_code(std::errc::no_such_file_or_directory));
     }
 
     if (!stdfs::exists(bazelStableExecutionRoot) || !stdfs::is_directory(bazelStableExecutionRoot)) {
       fmt::print(std::cerr, "bazel execution root {0} does not exist or cannot be read\n",
-                 bazelStableExecutionRoot.string());
+                 bazelStableExecutionRoot);
       return Fail(std::make_error_code(std::errc::no_such_file_or_directory));
     }
 
