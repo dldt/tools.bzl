@@ -4,9 +4,9 @@ load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
     name = "third_party",
-    sha256 = "9589c37e54f351a41f1e373ec9299d5f80b0098865c515d595e676882cb49f6c",
-    strip_prefix = "third_party.bzl-d966852c9de94e096675c90821b4f7f134811d0d/",
-    url = "https://github.com/dldt/third_party.bzl/archive/d966852c9de94e096675c90821b4f7f134811d0d.zip",
+    sha256 = "7a51e1e8f2799ef37c965c7df17a12a9d4b9d8781ff61a73086cad173380b9a8",
+    strip_prefix = "third_party.bzl-86bca4efcbb39069f0e897c0d191b87a26607df6/",
+    url = "https://github.com/dldt/third_party.bzl/archive/86bca4efcbb39069f0e897c0d191b87a26607df6.zip",
 )
 
 load("@third_party//:workspace.bzl", "workspace_repositories")
