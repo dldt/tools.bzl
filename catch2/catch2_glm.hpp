@@ -1,7 +1,7 @@
 #ifndef DLDT_TOOLS_CATCH2_CATCH2_GLM_HPP_
 #define DLDT_TOOLS_CATCH2_CATCH2_GLM_HPP_
 
-#include <catch2/catch.hpp>
+#include <catch2/catch_test_macros.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtx/string_cast.hpp>
 
