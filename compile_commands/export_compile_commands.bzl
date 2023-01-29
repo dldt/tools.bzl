@@ -3,8 +3,6 @@
 Inspired by https://github.com/grailbio/bazel-compilation-database
 """
 
-# Handle a :all or //package
-
 load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain")
 load(
     "@rules_cc//cc:action_names.bzl",
@@ -74,7 +72,7 @@ def _sources(target, ctx):
 
     return srcs
 
-def _get_tools_info(ctx, feature_configuration, action_name):
+def _get_tools_info(feature_configuration, action_name):
     return cc_common.get_tool_for_action(
         feature_configuration = feature_configuration,
         action_name = action_name,
@@ -104,19 +102,6 @@ def _get_flags_info(ctx, source_path, destination_path, compilation_context, fea
         opts = []
 
     execution_root_maker = "@EXECUTION_ROOT@/"
-
-    v = cc_common.create_compile_variables(
-        feature_configuration = feature_configuration,
-        cc_toolchain = cc_toolchain,
-        source_file = source_path,
-        output_file = destination_path,
-        preprocessor_defines =
-            depset(direct = compilation_context.local_defines.to_list(), transitive = [compilation_context.defines]),
-        framework_include_directories = depset([execution_root_maker + x for x in compilation_context.framework_includes.to_list()]),
-        include_directories = depset([execution_root_maker + x for x in compilation_context.includes.to_list()]),
-        quote_include_directories = depset([execution_root_maker + x for x in compilation_context.quote_includes.to_list()]),
-        system_include_directories = depset([execution_root_maker + x for x in compilation_context.system_includes.to_list()]),
-    )
 
     flags = cc_common.get_memory_inefficient_command_line(
         feature_configuration = feature_configuration,
@@ -176,7 +161,7 @@ def _compilation_database_aspect_impl(target, ctx):
         source_path = source.path
         destination_path = source_path + ".o"
 
-        compiler = _get_tools_info(ctx, feature_configuration, action_name)
+        compiler = _get_tools_info(feature_configuration, action_name)
         compile_flags = _get_flags_info(ctx, source_path, destination_path, compilation_context, feature_configuration, cc_toolchain, action_name)
 
         compile_arguments = [compiler] + compile_flags
@@ -242,14 +227,13 @@ def _compilation_database_impl(ctx):
 
     temporaryfile = ctx.actions.declare_file("compile_commands.in.json")
     ctx.actions.write(output = temporaryfile, content = content)
-    tools = ctx.resolve_tools(tools = [ctx.attr._fix_compilation_db])
 
     ctx.actions.run(
         outputs = [output],
         inputs = [temporaryfile, ctx.attr.locations.files.to_list()[0]],
         tools = ctx.attr._fix_compilation_db.files,
         executable = ctx.executable._fix_compilation_db,
-        arguments = ["-b", str(ctx.attr.locations.files.to_list()[0].path), str(output.path), str(temporaryfile.path)],
+        arguments = [ctx.attr.locations.files.to_list()[0].path, output.path, temporaryfile.path],
         progress_message = "Fixing compile_commands.json for current execution root",
         mnemonic = "CompileCommands",
     )
@@ -273,7 +257,7 @@ export_compile_commands = rule(
         "_fix_compilation_db": attr.label(
             default = ":fix_compilation_db",
             executable = True,
-            cfg = "host",
+            cfg = "exec",
         ),
         "locations": attr.label(
             allow_single_file = True,
