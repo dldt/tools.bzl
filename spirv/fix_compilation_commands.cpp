@@ -1,7 +1,7 @@
 #include <argparse/argparse.hpp>
 #include <fmt/format.h>
-#include <fmt/ostream.h>
 #include <fmt/std.h>
+#include <fmt/os.h>
 #include <nlohmann/json.hpp>
 
 #include <array>
@@ -16,26 +16,39 @@ using namespace std::literals::string_literals;
 namespace stdfs = std::filesystem;
 
 const auto kLocationsFilePathArg = "locations-file"s;
-const auto kCompileCommandsFileInArg = "compile-commands-in-file"s;
-const auto kCompileCommandsFileOutArg = "compile-commands-out-file"s;
+const auto kBuildFileOutArg = "build-out-file"s;
+const auto kBuildFileInArg = "build-in-file"s;
+const auto kDependenciesFileOutArg = "dependencies-out-file"s;
+const auto kDependenciesFileInArg = "dependencies-in-file"s;
+
 
 argparse::ArgumentParser BuildArgumentParser() {
-  argparse::ArgumentParser program("fix-compilation-db");
+  argparse::ArgumentParser program("fix-compilation-commands");
 
   program.add_argument(kLocationsFilePathArg)
       .help(
           "path to the locations.json file. This file must "
-          "contain current workspace location defined")
+          "contain current workspace location")
       .required()
       .action([](const std::string &value) { return stdfs::path(value); });
 
-  program.add_argument(kCompileCommandsFileOutArg)
-      .help("path to where the fixed compilation database is to be saved")
+  program.add_argument(kBuildFileOutArg)
+      .help("path to where the fixed compilation commands file to be saved")
       .required()
       .action([](const std::string &value) { return stdfs::path(value); });
 
-  program.add_argument(kCompileCommandsFileInArg)
-      .help("path to the clang compilation database to be fixed")
+  program.add_argument(kBuildFileInArg)
+      .help("path to the fixed compilation commands is to be fixed")
+      .required()
+      .action([](const std::string &value) { return stdfs::path(value); });
+
+  program.add_argument(kDependenciesFileOutArg)
+      .help("path to where the dependency file is to be saved")
+      .required()
+      .action([](const std::string &value) { return stdfs::path(value); });
+
+  program.add_argument(kDependenciesFileInArg)
+      .help("path to the dependency file to be fixed")
       .required()
       .action([](const std::string &value) { return stdfs::path(value); });
 
@@ -64,13 +77,21 @@ int main(int argc, char *argv[]) {
     return Fail(std::make_error_code(std::errc::no_such_file_or_directory));
   }
 
-  const auto clangDBInFilePath = program.get<stdfs::path>(kCompileCommandsFileInArg);
-  if (!stdfs::exists(clangDBInFilePath) || !stdfs::is_regular_file(clangDBInFilePath)) {
-    fmt::print(std::cerr, "{0} does not exist or is not a valid file.\n", clangDBInFilePath);
+  const auto buildOutFilePath = program.get<stdfs::path>(kBuildFileOutArg);
+
+  const auto buildInFilePath = program.get<stdfs::path>(kBuildFileInArg);
+  if (!stdfs::exists(buildInFilePath) || !stdfs::is_regular_file(buildInFilePath)) {
+    fmt::print(std::cerr, "{0} does not exist or is not a valid file.\n", buildInFilePath);
     return Fail(std::make_error_code(std::errc::no_such_file_or_directory));
   }
 
-  const auto clangDBOutFilePath = program.get<stdfs::path>(kCompileCommandsFileOutArg);
+  const auto dependenciesOutFilePath = program.get<stdfs::path>(kDependenciesFileOutArg);
+
+  const auto dependenciesInFilePath = program.get<stdfs::path>(kDependenciesFileInArg);
+  if (!stdfs::exists(dependenciesInFilePath) || !stdfs::is_regular_file(dependenciesInFilePath)) {
+    fmt::print(std::cerr, "{0} does not exist or is not a valid file.\n", dependenciesInFilePath);
+    return Fail(std::make_error_code(std::errc::no_such_file_or_directory));
+  }
 
   stdfs::path bazelWorkspaceRoot;
   stdfs::path bazelExecutionRoot;
@@ -99,37 +120,20 @@ int main(int argc, char *argv[]) {
       return Fail(std::make_error_code(std::errc::no_such_file_or_directory));
     }
 
-    auto bazelStableExecutionRootStr = bazelExecutionRoot.string();
-    json compilationDB;
     {
-      std::ifstream ifs(clangDBInFilePath);
-      ifs >> compilationDB;
+      std::ifstream ifs(buildInFilePath);
+      std::ofstream ofs(buildOutFilePath);
+      ofs << bazelExecutionRoot.string() << "\n";
+      ofs << ifs.rdbuf();
     }
-    for (auto &entry : compilationDB) {
-      entry["directory"] = bazelWorkspaceRoot.string();
-      auto &arguments = entry["arguments"];
-      auto it = std::find(arguments.begin(), arguments.end(), "-fno-canonical-system-headers");
-      if (it != arguments.end()) {
-        arguments.erase(it);
-      }
-      it = std::find(arguments.begin(), arguments.end(), "/showIncludes");
-      if (it != arguments.end()) {
-        arguments.erase(it);
-      }
 
-      for (auto &argument : arguments) {
-        if (argument.is_string()) {
-          decltype(auto) stringref = argument.get_ref<std::string &>();
-          if (auto pos = stringref.find(bazelStableExecutionRootMarker); pos != std::string::npos) {
-            stringref.replace(pos, bazelStableExecutionRootMarker.size(), bazelStableExecutionRootStr);
-          }
-        }
-      }
-    }
     {
-      std::ofstream ofs(clangDBOutFilePath);
-      ofs << compilationDB;
+      std::ifstream ifs(dependenciesInFilePath);
+      std::ofstream ofs(dependenciesOutFilePath);
+      std::vector<std::string> entries((std::istream_iterator<std::string>(ifs)), std::istream_iterator<std::string>());
+      fmt::print(ofs, "{}{}", bazelExecutionRoot.string() + "/", fmt::join(entries, " "s + bazelExecutionRoot.string() + "/"));
     }
+
   }
 
   return EXIT_SUCCESS;

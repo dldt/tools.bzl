@@ -20,7 +20,6 @@ def _export_headers(ctx, virtual_header_prefix):
         if include_prefix:
             out = paths.join(include_prefix, out)
 
-        name = out.replace("/", "_") + "_export"
         out = paths.join(
             virtual_header_prefix,
             out,
@@ -44,17 +43,18 @@ def _compile_files(ctx, includes):
             glsllibraryinfo.hdrs,
         )
 
-    args = ctx.actions.args()
-    args.add("--target-env={}".format(ctx.attr.target_env))
-    args.add("--target-spv={}".format(ctx.attr.target_spv))
-    args.add("-std={}{}".format(ctx.attr.std_version, ctx.attr.std_profile))
-    args.add_all(includes, format_each = "-I%s", uniquify = True)
-    args.add_all(ctx.attr.defines, format_each = "-D%s", uniquify = True)
+    args = []
+    args.append("-MD")
+    args.append("--target-env={}".format(ctx.attr.target_env))
+    args.append("--target-spv={}".format(ctx.attr.target_spv))
+    args.append("-std={}{}".format(ctx.attr.std_version, ctx.attr.std_profile))
+    args.extend(["-I{}".format(include) for include in includes])
+    args.extend(["-D{}".format(define) for define in ctx.attr.defines])
 
     if ctx.attr.debug:
-        args.add("-g")
+        args.append("-g")
     if ctx.attr.optimize:
-        args.add("-O")
+        args.append("-O")
 
     strip_output_prefix = ctx.attr.strip_output_prefix
     output_prefix = ctx.attr.output_prefix
@@ -69,20 +69,40 @@ def _compile_files(ctx, includes):
                 fail("{} is not a prefix of {}".format(strip_output_prefix, path))
         else:
             output_path = path
+
         if output_prefix:
             output_path = paths.join(output_prefix, output_path)
 
-        output_path = output_path + ".spv"
+        output_spv = ctx.actions.declare_file(output_path + ".spv")
+        output_spv_d = output_path + ".d"
+        output_dep_in = ctx.actions.declare_file(paths.join(output_spv_d, "deps.txt.in"))
+        output_build_in = ctx.actions.declare_file("build.txt.in", sibling = output_dep_in)
 
-        output_file = ctx.actions.declare_file(output_path)
-        outputs.append((output_path, output_file))
-        argsio = ctx.actions.args()
-        argsio.add_all(["-o", output_file.path, src])
+        output_dep = ctx.actions.declare_file("deps.txt", sibling=output_dep_in)
+        output_build = ctx.actions.declare_file("build.txt", sibling=output_build_in)
+
+        outputs.extend([output_spv, output_dep, output_build])
+
+        argsio = ["-MF", output_dep_in.path, "-o", output_spv.path, src.path]
+
         ctx.actions.run(
-            outputs = [output_file],
+            outputs = [output_spv, output_dep_in],
             inputs = ctx.files.srcs + ctx.files.hdrs + dephdrs,
             executable = ctx.files.glslc[0],
-            arguments = [args, argsio],
+            arguments = args + argsio,
+        )
+
+        ctx.actions.write(
+            content = " ".join([ctx.files.glslc[0].path] + args + argsio) + "\n" +
+                      " ".join([ctx.files.fix_compilation_commands[0].path, ctx.files.locations[0].path, output_build.path, output_build_in.path, output_dep.path, output_dep_in.path]),
+            output = output_build_in,
+        )
+
+        ctx.actions.run(
+            outputs = [output_build, output_dep],
+            inputs = [ctx.files.locations[0], output_build_in, output_dep_in],
+            executable = ctx.files.fix_compilation_commands[0],
+            arguments = [ctx.files.locations[0].path, output_build.path, output_build_in.path, output_dep.path, output_dep_in.path],
         )
 
     return outputs
@@ -91,7 +111,7 @@ def _glsl_library_impl(ctx):
     # compile the files
     this_build_file_dir = paths.dirname(ctx.build_file_path)
     this_package_dir = paths.join(this_build_file_dir, ctx.attr.name)
-    spirvs = {spv[0]: spv[1] for spv in _compile_files(ctx, [this_package_dir])}
+    spirvs = _compile_files(ctx, [this_package_dir])
 
     # Make sure they are correctly exposed to other packages
     virtual_header_prefix = "_virtual_includes/{}".format(ctx.attr.name)
@@ -109,9 +129,9 @@ def _glsl_library_impl(ctx):
 
     providers = [
         DefaultInfo(
-            files = depset(hdrs + spirvs.values()),
+            files = depset(hdrs + spirvs),
             runfiles = ctx.runfiles(
-                files = spirvs.values(),
+                files = spirvs,
             ),
         ),
         GlslLibraryInfo(
@@ -125,9 +145,9 @@ def _glsl_library_impl(ctx):
         # Compute output location for spv files
         # This will be used to populate the includes variable of the SpirvLibraryInfo provider
         # Check if this could made more resilient
-        spirvs_root = paths.join(ctx.bin_dir.path, spirvs.values()[0].owner.workspace_root)
+        spirvs_root = paths.join(ctx.bin_dir.path, spirvs[0].owner.workspace_root)
         providers.append(SpirvLibraryInfo(
-            spvs = spirvs.values(),
+            spvs = spirvs,
             includes = [spirvs_root],
         ))
 
@@ -196,5 +216,13 @@ glsl_library = rule(
             allow_single_file = True,
             default = "@shaderc//:glslc",
         ),
+        "fix_compilation_commands": attr.label(
+            allow_single_file = True,
+            default = "@tools//spirv:fix_compilation_commands",
+        ),
+        "locations": attr.label(
+            allow_single_file = True,
+            default = "@workspace_status//:locations.json",
+        )
     },
 )
